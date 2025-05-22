@@ -1,0 +1,80 @@
+Perfect Sruti — this is a nuanced issue involving **role-based access control (RBAC)** and **client-side exposure**. Let’s break this down clearly and professionally.
+
+---
+
+## ✅ Is This a Real Issue?
+
+**Yes, it is a valid security concern** — specifically, it’s a **Broken Access Control (BAC)** scenario, albeit partially mitigated.
+
+Here’s why:
+
+* You're observing **inconsistent access control**:
+
+  * **UI hides options** for certain roles (Client Admin)
+  * But the **backend still renders sensitive pages** when the URL is pasted
+* Even though actions like update are **blocked by the backend**, exposing the edit page:
+
+  * **Leads to confusion and potential probing**
+  * Could leak **metadata or internal implementation details**
+  * Is a **UX and security control inconsistency**
+
+So this is **not a critical vulnerability**, but it is a **valid misconfiguration** worth fixing — especially for high-privilege contexts like "Edit Client."
+
+---
+
+## 📝 Vulnerability Report Entry
+
+### 🔐 **Title:**
+
+Role-Based UI Restriction Bypassed via Direct URL Access
+
+---
+
+### 📝 **Description:**
+
+The application implements role-based UI controls to hide certain actions (e.g., *"Edit Client"*, *"Access & Permissions"*) from the **Client Admin** role. However, these restrictions are **only enforced at the frontend**.
+
+By logging in as a different user (**Champion role**), copying a direct URL to a privileged action (e.g., **Edit Client**), and opening it in a separate session as **Client Admin**, the restricted page is still **accessible and rendered**, although update actions fail with an error.
+
+This indicates a mismatch between frontend access control and backend enforcement.
+
+---
+
+### 🧠 **Impact:**
+
+* Inconsistent access control logic
+* Potential **information disclosure** (form fields, client IDs, etc.)
+* Opportunity for attackers to **probe or automate requests**
+* In some implementations, this might even lead to **privilege escalation** if backend checks are weak
+
+---
+
+### 🧪 **Steps to Reproduce:**
+
+1. Log in as a **Champion** user in Tab A
+2. Navigate to a client and click **Edit Client**
+3. Copy the full **Edit Client URL**
+4. Log in as a **Client Admin** in Tab B (incognito)
+5. Paste the **Edit Client URL** into Tab B
+6. The edit page is rendered (partially or fully), though actual updates fail
+
+---
+
+### 🛡️ **Remediation:**
+
+* Enforce **backend-level role checks** for every sensitive route (e.g., `/edit-client/:id`)
+* Return **403 Forbidden** instead of rendering the page for unauthorized roles
+* Remove sensitive UI components and routes from being visible or accessible to unauthorized roles
+* Add **logging and alerting** when unauthorized access is attempted
+
+---
+
+### 🏷️ Tags:
+
+* CWE-200 (Information Exposure)
+* CWE-285 (Improper Authorization)
+* OWASP Top 10: **A01 – Broken Access Control**
+
+---
+
+Would you like this turned into a Markdown or PDF report entry you can drop into a client report or ticketing system (like Jira)?
