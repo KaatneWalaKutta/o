@@ -1,16 +1,19 @@
-Log in to the application using the Client Admin account.
+Self-XSS with UI-triggered execution (non-persistent)
+Here’s a breakdown of the characteristics:
 
-Select the "View Study" option to view the study details.
+Type: Non-persistent XSS (a form of self-XSS or DOM-based XSS, depending on the context)
 
-Click on the "Documents" tab.
+Trigger: User interaction (clicking a "CODE HTML" button in a text editor or email drawer)
 
-Manually append ?viewAs=client-manager to the URL to enable the Upload Document functionality.
+Persistence: Non-persistent – the payload is not stored server-side and is triggered only once during that session
 
-It was observed that the document upload was successful, and the file was imported into the application.
+Execution: Happens on toggling the code editor mode or rendering logic
 
+Impact: Typically low if it's only exploitable by the attacker themselves (self-XSS), but could be critical if the same editor renders input from other users (then it becomes a stored or reflected XSS depending on the flow)
 
-Validate user roles and permissions server-side for every sensitive action such as uploading documents.
+✅ How to Classify It in a Report
+You might write:
 
-Remove or secure any impersonation/debug parameters like ?viewAs=client-manager to prevent unauthorized role switching.
-
-Ensure that UI elements and backend endpoints are both governed by strict role-based access control (RBAC).
+Vulnerability: Non-persistent Cross-Site Scripting (XSS) via rich text editor
+Description: A user can insert an XSS payload into the rich text editor using the "CODE HTML" feature. When toggled, the payload executes client-side. The XSS is not stored and is only triggered once, suggesting a non-persistent, UI-triggered DOM-based XSS vulnerability.
+Impact: If input from other users can be rendered in the same context (e.g., shared drafts, collaborative editing), this could lead to stored XSS. Otherwise, it is a self-XSS with limited exploitation potential.
