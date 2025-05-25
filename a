@@ -1,7 +1,10 @@
-Issue: Unauthorized File Upload via Impersonation
+Log in to the application using the Client Admin account.
 
-The Client Admin user is able to upload files through an unintended method, despite the absence of an upload functionality on the interface. This is achievable by appending the query string ?viewAs=client-manager to the manager document endpoint URL for a specific study.
+Select the "View Study" option to view the study details.
 
-Appending ?viewAs=client-manager allows the Client Admin to impersonate a Client Manager, as indicated by the appearance of the "Exit Client Manager View" button on the page. This impersonation enables the Client Admin to access the file upload option and upload documents in a section where they are not authorized to do so.
+Click on the "Documents" tab.
 
-However, once uploaded, these documents cannot be deleted by the Client Admin, indicating improper access control and a lack of privilege separation between roles.
+Manually append ?viewAs=client-manager to the URL to enable the Upload Document functionality.
+
+It was observed that the document upload was successful, and the file was imported into the application.
+
