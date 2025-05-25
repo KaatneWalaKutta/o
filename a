@@ -8,3 +8,9 @@ Manually append ?viewAs=client-manager to the URL to enable the Upload Document 
 
 It was observed that the document upload was successful, and the file was imported into the application.
 
+
+Validate user roles and permissions server-side for every sensitive action such as uploading documents.
+
+Remove or secure any impersonation/debug parameters like ?viewAs=client-manager to prevent unauthorized role switching.
+
+Ensure that UI elements and backend endpoints are both governed by strict role-based access control (RBAC).
