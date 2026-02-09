@@ -1,4 +1,4 @@
-
+Client-Side Remote Code Execution (RCE) via eval() Sink
 
 The application utilizes a custom Streamlit component (JavascriptComponent) that exposes a dangerous sink. Analysis of the reconstructed source code from the exposed .map files reveals that the component accepts a property named js_code from the backend and passes it directly into a JavaScript eval() function.
 
