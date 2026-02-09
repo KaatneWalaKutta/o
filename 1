@@ -43,3 +43,46 @@ Machine ID: no-machine-id-v4 (indicating a containerized or generic environment)
 Session ID/Key: d67e102b-0c48-5d12-9ebe-47e6719e782d
 
 App Script: Home.py
+
+
+
+
+
+
+
+
+Vulnerability: Exposed Source Map Files (.map) Allowing Frontend Source Code Reconstruction
+
+Description:
+The application exposes JavaScript source map files (.js.map) in the production environment. These files are intended for debugging purposes during development and can contain original source code, file structure, and function names.
+
+Using these exposed .map files, it was possible to reconstruct the application's frontend source code. This can help an attacker understand the client-side logic, uncover hidden API endpoints, debug information, hardcoded secrets (in some cases), and identify potential vulnerabilities (e.g., IDOR, hidden functionality).
+
+Affected URL:
+https://example.com/static/js/app.js.map
+(and similar)
+
+Steps to Reproduce:
+
+Visit the main site and open Developer Tools > Network tab.
+
+Observe the JavaScript files being loaded, such as:
+
+Impact:
+
+Disclosure of internal implementation logic.
+
+Easier identification of sensitive client-side logic.
+
+Potential exposure of insecure API interactions.
+
+Increased risk of further targeted attacks.
+
+Remediation:
+
+Do not deploy .map files to production environments. Ensure your CI/CD pipelines strip them from builds intended for deployment.
+
+Review current web server configurations to restrict access to *.map files.
+
+Conduct an internal code review to ensure no secrets or sensitive logic were exposed through source maps.
+
