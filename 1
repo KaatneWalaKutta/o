@@ -12,3 +12,34 @@ Implement Content Security Policy (CSP): Deploy a strict CSP that disallows 'uns
 
 
 Since environmental restrictions prevent active Hex injection, the vulnerability is proven via the leaked source code:
+
+
+
+
+
+
+
+
+
+
+Sensitive Information disclosure: in websocket traffic:
+
+
+The hex string you provided decodes into a structured data format, likely Protocol Buffers (protobuf), which is commonly used by Streamlit to synchronize state between the Python backend and the React frontend.
+
+Decoded Data Summary
+The decoded bytes reveal a configuration for a Streamlit application, including session identifiers, environment details, font styling, and page navigation structures.
+
+1. Environment & Versioning
+Streamlit Version: 1.45.1
+
+Python Version: 3.12.12.final.0
+
+Operating System: linux
+
+Machine ID: no-machine-id-v4 (indicating a containerized or generic environment)
+
+2. Session & Application Identity
+Session ID/Key: d67e102b-0c48-5d12-9ebe-47e6719e782d
+
+App Script: Home.py
