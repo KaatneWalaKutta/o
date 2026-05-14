@@ -1,0 +1,202 @@
+==============================================================================
+  mTLS API PENTEST SETUP - STEP BY STEP GUIDE
+  API: api-extern-mtls-uat.us.kpmg.com
+==============================================================================
+
+STEP 1: VALIDATE THE CERTIFICATE
+==============================================================================
+
+Open cmd or PowerShell, navigate to your OpenSSL bin folder, and run:
+
+  openssl x509 -in cert.pem -noout -dates
+
+  → Confirm "notAfter" date is in the future.
+
+  openssl x509 -in cert.pem -noout -subject -issuer
+
+  → Confirm the subject/issuer look correct (should reference KPMG internal CA).
+
+  openssl x509 -in cert.pem -noout -text
+
+  → Full details: algorithm, key size, extensions, etc.
+
+
+STEP 2: VERIFY CERT AND KEY MATCH
+==============================================================================
+
+  openssl x509 -in cert.pem -noout -modulus | openssl md5
+  openssl rsa  -in "private 1.pem" -noout -modulus | openssl md5
+
+  → Both MD5 hashes MUST be identical.
+  → If they don't match, the cert and key are not a pair — go back to the client.
+
+
+STEP 3: CHECK IF PRIVATE KEY IS ENCRYPTED
+==============================================================================
+
+Open "private 1.pem" in Notepad:
+
+  - If it says "-----BEGIN PRIVATE KEY-----"           → NOT encrypted (no passphrase needed)
+  - If it says "-----BEGIN RSA PRIVATE KEY-----"        → NOT encrypted (no passphrase needed)
+  - If it says "-----BEGIN ENCRYPTED PRIVATE KEY-----"  → ENCRYPTED (you need the passphrase)
+
+
+STEP 4: CREATE PFX BUNDLE (NEEDED FOR WINDOWS)
+==============================================================================
+
+Windows tools (Postman, curl, PowerShell) prefer PFX format over PEM.
+
+  openssl pkcs12 -export -out client.pfx -inkey "private 1.pem" -in cert.pem
+
+  → It will ask for an export password. You can press Enter twice for no password.
+  → This creates client.pfx containing both the cert and key.
+
+
+STEP 5: QUICK TEST WITH POWERSHELL
+==============================================================================
+
+Open PowerShell and run:
+
+  [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
+  [Net.ServicePointManager]::ServerCertificateValidationCallback = {$true}
+
+  $cert = New-Object System.Security.Cryptography.X509Certificates.X509Certificate2(
+      (Resolve-Path "client.pfx").Path, "",
+      [System.Security.Cryptography.X509Certificates.X509KeyStorageFlags]::MachineKeySet
+  )
+
+  # Test TCP + TLS handshake only (no HTTP)
+  $tcp = New-Object Net.Sockets.TcpClient
+  $tcp.Connect("api-extern-mtls-uat.us.kpmg.com", 443)
+  $ssl = New-Object Net.Security.SslStream($tcp.GetStream(), $false, {$true})
+  $certs = New-Object System.Security.Cryptography.X509Certificates.X509CertificateCollection
+  $certs.Add($cert)
+  $ssl.AuthenticateAsClient("api-extern-mtls-uat.us.kpmg.com", $certs, [System.Security.Authentication.SslProtocols]::Tls12, $false)
+  Write-Host "TLS handshake succeeded! Protocol:" $ssl.SslProtocol
+  $ssl.Close()
+  $tcp.Close()
+
+  → If you see "TLS handshake succeeded!" the cert is working.
+  → If it fails here, the problem is the cert or network — don't bother with Postman yet.
+
+
+STEP 6: TEST FULL API CALL WITH POWERSHELL
+==============================================================================
+
+  [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
+  [Net.ServicePointManager]::ServerCertificateValidationCallback = {$true}
+
+  $cert = New-Object System.Security.Cryptography.X509Certificates.X509Certificate2(
+      (Resolve-Path "client.pfx").Path, "",
+      [System.Security.Cryptography.X509Certificates.X509KeyStorageFlags]::MachineKeySet
+  )
+
+  $url = "https://api-extern-mtls-uat.us.kpmg.com/kpmg-nexus-std-gmsimmi-sapi-proxy-uat/gms-immigration/api/v1/case-document?source_system_client_id=f1acadcc-648d-4737-85f8-d3391c7743c0&case_document_id=2046"
+
+  $request = [Net.HttpWebRequest]::Create($url)
+  $request.Method = "GET"
+  $request.ClientCertificates.Add($cert)
+  $request.Headers.Add("Client_Id", "f8b45a8316ef4d179eee4033d2515a69")
+  $request.Headers.Add("client_secret", "FD83fEf1E8234347AaA5EdBA48cfEdba")
+  $request.Headers.Add("SourceSystemVendorId", "BDB9269B-3AE0-4A2D-8BA9-B1B047277CCF")
+
+  $response = $request.GetResponse()
+  $reader = New-Object IO.StreamReader($response.GetResponseStream())
+  $reader.ReadToEnd()
+  $reader.Close()
+  $response.Close()
+
+  → You should see the API JSON response.
+
+
+STEP 7: CONFIGURE POSTMAN
+==============================================================================
+
+Option A — Use PFX (recommended on Windows):
+
+  1. Open Postman → Settings (gear icon) → Certificates
+  2. Delete any old certificate entries for this host
+  3. Click "Add Certificate"
+  4. Host:        api-extern-mtls-uat.us.kpmg.com
+  5. Port:        443
+  6. PFX file:    Select client.pfx
+  7. Passphrase:  Leave blank (if you didn't set one)
+  8. CRT file:    Leave empty
+  9. KEY file:    Leave empty
+  10. Click "Add"
+
+Option B — Use PEM files:
+
+  1. Same as above but use:
+     CRT file:   cert.pem
+     KEY file:    private 1.pem
+     PFX file:    Leave empty
+
+Additional Postman settings:
+
+  - Settings → General → SSL certificate verification → OFF
+    (UAT environments often use internal CAs that Postman won't trust)
+
+  - Settings → Proxy → Use system proxy → Try both ON and OFF
+    (Corporate VDIs may need proxy ON, or may need it OFF with --noproxy)
+
+
+STEP 8: SEND TEST REQUEST IN POSTMAN
+==============================================================================
+
+  1. Open the UAT_GET_CASE_Document request from the collection
+  2. Verify these query params are present:
+     - source_system_client_id = f1acadcc-648d-4737-85f8-d3391c7743c0
+     - case_document_id = 2046
+  3. Verify these headers are present:
+     - Client_Id: f8b45a8316ef4d179eee4033d2515a69
+     - client_secret: FD83fEf1E8234347AaA5EdBA48cfEdba
+     - SourceSystemVendorId: BDB9269B-3AE0-4A2D-8BA9-B1B047277CCF
+  4. Hit Send
+  5. You should get a 200 OK with JSON response
+
+
+==============================================================================
+  TROUBLESHOOTING CHEAT SHEET
+==============================================================================
+
+ERROR                                          | LIKELY CAUSE
+-----------------------------------------------|-----------------------------
+"remote party closed the transport stream"     | Expired cert or server rejected your cert
+"Bad hostname"                                 | Proxy blocking — add --noproxy "*"
+"Failed to get certificate location"           | Windows Schannel can't read PEM — use PFX
+"SEC_E_NO_CREDENTIALS"                         | Cert not loaded — import PFX into Windows store
+"certificate has expired"                      | Check dates with: openssl x509 -in cert.pem -noout -dates
+Modulus MD5 mismatch                           | Cert and key don't match — request correct pair
+"CERTIFICATE_UNKNOWN" or "handshake failure"   | Server doesn't trust your cert's CA
+Connection timeout                             | Network/firewall issue — check VPN
+
+
+==============================================================================
+  USEFUL OPENSSL COMMANDS REFERENCE
+==============================================================================
+
+# Check cert dates
+openssl x509 -in cert.pem -noout -dates
+
+# Check cert subject and issuer
+openssl x509 -in cert.pem -noout -subject -issuer
+
+# Full cert details
+openssl x509 -in cert.pem -noout -text
+
+# Verify cert-key match
+openssl x509 -in cert.pem -noout -modulus | openssl md5
+openssl rsa  -in key.pem  -noout -modulus | openssl md5
+
+# Convert PEM to PFX
+openssl pkcs12 -export -out client.pfx -inkey key.pem -in cert.pem
+
+# Check if key is encrypted
+head -1 key.pem
+
+# Check cert chain
+openssl verify -CAfile ca-bundle.pem cert.pem
+
+# Test server connection
+openssl s_client -connect hostname:443 -cert cert.pem -key key.pem
